@@ -18,7 +18,9 @@ The following breaking change only affects you if you specifically catch `Divisi
 🐛 **Bug fixes**
 
 - `of()` no longer throws `PlatformException` on malformed input with many digits, crafted to trigger heavy backtracking in its parser; such input now throws `NumberFormatException` as documented
-- `of()` now throws `NumberFormatException` for exponents at the edge of the integer range, previously exhausted memory
+
+👌 **Improvements**
+
 - `NumberFormatException` messages now escape control and non-ASCII characters, and truncate values longer than 40 bytes, instead of copying the raw input into the message
 
 ## [0.19.1](https://github.com/brick/math/releases/tag/0.19.1) - 2026-08-08
