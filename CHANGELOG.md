@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 💥 **Breaking changes**
 
+- Deprecated exception class `UnsupportedPlatformException` has been removed, catch `PlatformException` instead
+
 The following breaking change only affects you if you specifically catch `DivisionByZeroException` around calls to `of()`:
 
 - `of()` now throws `NumberFormatException` instead of `DivisionByZeroException` when the string is a fraction with a denominator of zero, such as `'2/0'`
