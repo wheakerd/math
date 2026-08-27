@@ -438,6 +438,7 @@ class BigNumberTest extends AbstractTestCase
         return [
             ['1e' . PHP_INT_MAX],
             ['1e-' . PHP_INT_MAX],
+            ['0e-' . PHP_INT_MAX],
         ];
     }
 

@@ -693,19 +693,22 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
             return new BigInteger((string) $value);
         }
 
-        return self::_parse($value, NumberSyntax::ALL, PHP_INT_MAX);
+        return self::_parse($value, null, null);
     }
 
     /**
-     * @param list<NumberSyntax> $allowedSyntax The allowed syntax features; plain integers are always accepted.
-     * @param positive-int       $maxDigits     The maximum number of digits, as written and in the resulting number.
+     * Note: $allowedSyntax and $maxDigits are nullable as a performance optimization for of(): null behaves like
+     * `NumberSyntax::ALL` and `PHP_INT_MAX`, but skips the checks, which could never fail against those values.
+     *
+     * @param list<NumberSyntax>|null $allowedSyntax The allowed syntax features; plain integers are always accepted. Null for all.
+     * @param positive-int|null       $maxDigits     The maximum number of digits, as written and in the resulting number. Null for no limit.
      *
      * @throws NumberFormatException If the format of $value is invalid, if it uses a syntax that is not allowed
      *                               by $allowedSyntax, or if it has more than $maxDigits digits.
      *
      * @pure
      */
-    private static function _parse(string $value, array $allowedSyntax, int $maxDigits): BigNumber
+    private static function _parse(string $value, ?array $allowedSyntax, ?int $maxDigits): BigNumber
     {
         if ($value === '') {
             throw NumberFormatException::emptyNumber();
@@ -723,27 +726,21 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
                 throw NumberFormatException::invalidFormat($value);
             }
 
-            if (! in_array(NumberSyntax::Fraction, $allowedSyntax, true)) {
+            if ($allowedSyntax !== null && ! in_array(NumberSyntax::Fraction, $allowedSyntax, true)) {
                 throw NumberFormatException::syntaxNotAllowed(NumberSyntax::Fraction);
             }
 
             $sign = $matches['sign'];
-            $numerator = $matches['numerator'];
-            $denominator = $matches['denominator'];
-
-            // Digit count is recorded before trimming zeros and before simplification:
-            // the final count will always be less or equal.
-            $numeratorDigits = strlen($numerator);
-            $denominatorDigits = strlen($denominator);
-
-            $numerator = self::cleanUp($sign, $numerator);
-            $denominator = self::cleanUp(null, $denominator);
+            $numerator = self::cleanUp($sign, $matches['numerator']);
+            $denominator = self::cleanUp(null, $matches['denominator']);
 
             if ($denominator === '0') {
                 throw NumberFormatException::zeroDenominator();
             }
 
-            if ($numeratorDigits + $denominatorDigits > $maxDigits) {
+            // The digit count is taken as written, before trimming zeros and before simplification:
+            // the final count will always be less or equal.
+            if ($maxDigits !== null && strlen($matches['numerator']) + strlen($matches['denominator']) > $maxDigits) {
                 throw NumberFormatException::tooManyDigits($maxDigits);
             }
 
@@ -776,19 +773,13 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
             throw NumberFormatException::invalidFormat($value);
         }
 
-        $writtenDigits = strlen($integral ?? '') + strlen($fractional ?? '');
-
-        if ($exponent !== null) {
-            $writtenDigits += strlen($exponent) - (int) ($exponent[0] === '-' || $exponent[0] === '+');
-        }
-
         if ($integral === null) {
             $integral = '0';
         }
 
         if ($point === null && $exponent === null) {
             // Integer number.
-            if ($writtenDigits > $maxDigits) {
+            if ($maxDigits !== null && strlen($integral) > $maxDigits) {
                 throw NumberFormatException::tooManyDigits($maxDigits);
             }
 
@@ -798,12 +789,14 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
         }
 
         // Decimal number.
-        if ($point !== null && ! in_array(NumberSyntax::DecimalPoint, $allowedSyntax, true)) {
-            throw NumberFormatException::syntaxNotAllowed(NumberSyntax::DecimalPoint);
-        }
+        if ($allowedSyntax !== null) {
+            if ($point !== null && ! in_array(NumberSyntax::DecimalPoint, $allowedSyntax, true)) {
+                throw NumberFormatException::syntaxNotAllowed(NumberSyntax::DecimalPoint);
+            }
 
-        if ($exponent !== null && ! in_array(NumberSyntax::Exponent, $allowedSyntax, true)) {
-            throw NumberFormatException::syntaxNotAllowed(NumberSyntax::Exponent);
+            if ($exponent !== null && ! in_array(NumberSyntax::Exponent, $allowedSyntax, true)) {
+                throw NumberFormatException::syntaxNotAllowed(NumberSyntax::Exponent);
+            }
         }
 
         if ($exponent === null) {
@@ -833,19 +826,32 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
             throw NumberFormatException::exponentTooLarge();
         }
 
-        $digits = strlen($unscaledValue) - (int) ($unscaledValue[0] === '-');
+        $unscaledDigits = strlen($unscaledValue) - (int) ($unscaledValue[0] === '-');
 
         if ($scale < 0 && $unscaledValue !== '0') {
             // The unscaled value is padded with -$scale zeros below.
-            $count = $digits - $scale;
+            $expandedDigits = $unscaledDigits - $scale;
         } else {
             // The fractional digits, plus at least a zero integer part.
-            $count = max($digits, $scale + 1);
+            $expandedDigits = max($unscaledDigits, $scale + 1);
         }
 
         // @phpstan-ignore function.alreadyNarrowedType (may overflow to float)
-        if (! is_int($count) || $count > $maxDigits || $writtenDigits > $maxDigits) {
-            throw NumberFormatException::tooManyDigits($maxDigits);
+        if (! is_int($expandedDigits)) {
+            throw NumberFormatException::tooManyDigits($maxDigits ?? PHP_INT_MAX);
+        }
+
+        if ($maxDigits !== null) {
+            // Digits as written: every digit of the input counts, including leading zeros and exponent digits.
+            $writtenDigits = strlen($matches['integral'] ?? '') + strlen($matches['fractional'] ?? '');
+
+            if ($matches['exponent'] !== null) {
+                $writtenDigits += strlen($matches['exponent']) - (int) ($matches['exponent'][0] === '-' || $matches['exponent'][0] === '+');
+            }
+
+            if ($expandedDigits > $maxDigits || $writtenDigits > $maxDigits) {
+                throw NumberFormatException::tooManyDigits($maxDigits);
+            }
         }
 
         if ($scale < 0) {
