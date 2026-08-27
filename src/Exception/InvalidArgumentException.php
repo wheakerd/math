@@ -140,4 +140,14 @@ final class InvalidArgumentException extends \InvalidArgumentException implement
     {
         return new self('The maximum number of digits must be a positive integer.');
     }
+
+    /**
+     * @internal
+     *
+     * @pure
+     */
+    public static function invalidAllowedSyntax(): self
+    {
+        return new self('The allowed syntax must be a list of NumberSyntax cases.');
+    }
 }

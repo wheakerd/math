@@ -520,6 +520,59 @@ class BigNumberTest extends AbstractTestCase
         }
     }
 
+    #[DataProvider('providerInvalidAllowedSyntax')]
+    public function testParseWithInvalidAllowedSyntax(array $allowedSyntax): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageExact('The allowed syntax must be a list of NumberSyntax cases.');
+
+        /** @phpstan-ignore argument.type */
+        BigNumber::parse('1', allowedSyntax: $allowedSyntax, maxDigits: 10);
+    }
+
+    #[DataProvider('providerInvalidAllowedSyntax')]
+    public function testParseNullableWithInvalidAllowedSyntax(array $allowedSyntax): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageExact('The allowed syntax must be a list of NumberSyntax cases.');
+
+        /** @phpstan-ignore argument.type */
+        BigNumber::parseNullable('1', allowedSyntax: $allowedSyntax, maxDigits: 10);
+    }
+
+    #[DataProvider('providerInvalidAllowedSyntax')]
+    public function testParseNullableWithNullInputAndInvalidAllowedSyntax(array $allowedSyntax): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageExact('The allowed syntax must be a list of NumberSyntax cases.');
+
+        /** @phpstan-ignore argument.type */
+        BigNumber::parseNullable(null, allowedSyntax: $allowedSyntax, maxDigits: 10);
+    }
+
+    /**
+     * @return list<array{array<mixed>}>
+     */
+    public static function providerInvalidAllowedSyntax(): array
+    {
+        return [
+            // A preset wrapped in an array, easily confused with the case of the same name.
+            [[NumberSyntax::DECIMAL]],
+            // Case names as strings.
+            [['DecimalPoint']],
+            [['Exponent', 'Fraction']],
+            // Other types.
+            [[1]],
+            [[null]],
+            [[true]],
+            // A valid case followed by an invalid value: every element is checked.
+            [[NumberSyntax::DecimalPoint, 'Exponent']],
+            // Valid cases, but not a list: string keys or non-sequential indexes.
+            [['decimal' => NumberSyntax::DecimalPoint]],
+            [[1 => NumberSyntax::DecimalPoint, 2 => NumberSyntax::Exponent]],
+        ];
+    }
+
     #[DataProvider('providerInvalidMaxDigits')]
     public function testParseWithInvalidMaxDigits(int $maxDigits): void
     {
@@ -538,6 +591,16 @@ class BigNumberTest extends AbstractTestCase
 
         /** @phpstan-ignore argument.type */
         BigNumber::parseNullable('1', allowedSyntax: NumberSyntax::ALL, maxDigits: $maxDigits);
+    }
+
+    #[DataProvider('providerInvalidMaxDigits')]
+    public function testParseNullableWithNullInputAndInvalidMaxDigits(int $maxDigits): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessageExact('The maximum number of digits must be a positive integer.');
+
+        /** @phpstan-ignore argument.type */
+        BigNumber::parseNullable(null, allowedSyntax: NumberSyntax::ALL, maxDigits: $maxDigits);
     }
 
     public static function providerInvalidMaxDigits(): array

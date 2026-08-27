@@ -15,6 +15,7 @@ use JsonSerializable;
 use Override;
 use Stringable;
 
+use function array_is_list;
 use function assert;
 use function filter_var;
 use function in_array;
@@ -159,7 +160,8 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
      *                                    by $allowedSyntax, or if it has more than $maxDigits digits.
      * @throws RoundingNecessaryException If the method is called on a subclass of BigNumber, and the value cannot be
      *                                    converted to an instance of the subclass without rounding.
-     * @throws InvalidArgumentException   If $maxDigits is less than 1.
+     * @throws InvalidArgumentException   If $allowedSyntax is not a list of NumberSyntax cases, or if $maxDigits is
+     *                                    less than 1.
      *
      * @pure
      */
@@ -168,6 +170,16 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
         array $allowedSyntax,
         int $maxDigits,
     ): static {
+        if (! array_is_list($allowedSyntax)) { // @phpstan-ignore function.alreadyNarrowedType
+            throw InvalidArgumentException::invalidAllowedSyntax();
+        }
+
+        foreach ($allowedSyntax as $syntax) {
+            if (! $syntax instanceof NumberSyntax) { // @phpstan-ignore instanceof.alwaysTrue
+                throw InvalidArgumentException::invalidAllowedSyntax();
+            }
+        }
+
         if ($maxDigits < 1) { // @phpstan-ignore smaller.alwaysFalse
             throw InvalidArgumentException::nonPositiveMaxDigits();
         }
@@ -203,7 +215,8 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
      *                                    by $allowedSyntax, or if it has more than $maxDigits digits.
      * @throws RoundingNecessaryException If the method is called on a subclass of BigNumber, and the value cannot be
      *                                    converted to an instance of the subclass without rounding.
-     * @throws InvalidArgumentException   If $maxDigits is less than 1.
+     * @throws InvalidArgumentException   If $allowedSyntax is not a list of NumberSyntax cases, or if $maxDigits is
+     *                                    less than 1.
      *
      * @pure
      */
@@ -213,6 +226,16 @@ abstract readonly class BigNumber implements JsonSerializable, Stringable
         int $maxDigits,
     ): ?static {
         if ($value === null) {
+            if (! array_is_list($allowedSyntax)) { // @phpstan-ignore function.alreadyNarrowedType
+                throw InvalidArgumentException::invalidAllowedSyntax();
+            }
+
+            foreach ($allowedSyntax as $syntax) {
+                if (! $syntax instanceof NumberSyntax) { // @phpstan-ignore instanceof.alwaysTrue
+                    throw InvalidArgumentException::invalidAllowedSyntax();
+                }
+            }
+
             if ($maxDigits < 1) { // @phpstan-ignore smaller.alwaysFalse
                 throw InvalidArgumentException::nonPositiveMaxDigits();
             }
