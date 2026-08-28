@@ -104,16 +104,39 @@ BigRational::of('1.15'); // 23/20 (reduced to lowest terms)
 > BigDecimal::fromFloatShortest(0.1); // 0.1
 > ```
 
-> [!CAUTION]
-> The `of()` factory method is for trusted input: a string as short as `1e1000000000` can expand to gigabytes of
-> memory and exceed PHP's memory limit.
->
-> For untrusted user input, use `parse()` instead:
->
-> ```php
-> BigDecimal::parse('1000000000000000000000', allowedSyntax: NumberSyntax::SCIENTIFIC, maxDigits: 100); // OK
-> BigDecimal::parse('1e1000000000', allowedSyntax: NumberSyntax::SCIENTIFIC, maxDigits: 100); // NumberFormatException
-> ```
+#### Parsing untrusted input
+
+`of()` places no hard limits on its input: a string with millions of digits is accepted as is, and a number in
+exponential notation is expanded to its full length, so a string as short as `1e1000000000` yields a number with
+a billion digits.
+
+If your input comes from an untrusted source, such as an HTTP request, use `parse()` instead, which requires you
+to specify the allowed syntax and a maximum number of digits:
+
+```php
+use Brick\Math\NumberSyntax;
+
+BigDecimal::parse($input, allowedSyntax: NumberSyntax::DECIMAL, maxDigits: 20);
+```
+
+The `$allowedSyntax` parameter restricts the accepted notations. Plain integers such as `123` are always accepted,
+and each `NumberSyntax` case (`DecimalPoint`, `Exponent`, `Fraction`) allows one additional feature. The enum also
+provides constants for the most common combinations:
+
+- `NumberSyntax::INTEGER` — integers only: `123`
+- `NumberSyntax::DECIMAL` — integers and decimal numbers: `123`, `123.45`; typical for monetary input
+- `NumberSyntax::SCIENTIFIC` — integers, decimal numbers and exponents: `123`, `123.45`, `1.5e-3`; accepts every JSON number
+- `NumberSyntax::RATIONAL` — integers and fractions: `123`, `22/7`
+- `NumberSyntax::ALL` — the full syntax accepted by `of()`: `123`, `123.45`, `1.5e-3`, `22/7`
+
+The `$maxDigits` parameter limits the number of digits, counted both as written in the input and in the resulting number,
+so that a value such as `1e1000000000` is rejected before it is ever expanded:
+
+```php
+BigDecimal::parse('123.45', allowedSyntax: NumberSyntax::DECIMAL, maxDigits: 20); // 123.45
+BigDecimal::parse('1.2e3', allowedSyntax: NumberSyntax::DECIMAL, maxDigits: 20); // NumberFormatException (exponent not allowed)
+BigDecimal::parse('1e1000000000', allowedSyntax: NumberSyntax::SCIENTIFIC, maxDigits: 20); // NumberFormatException (too many digits)
+```
 
 #### Immutability & chaining
 
@@ -159,9 +182,8 @@ echo BigInteger::of(2)->multipliedBy(BigDecimal::of('2.5')); // RoundingNecessar
 echo BigDecimal::of(2.5)->multipliedBy(BigInteger::of(2)); // 5.0
 ```
 
-> [!CAUTION]
-> These parameters are converted with `of()`, so the same caution applies: never pass an untrusted string
-> directly to an arithmetic or comparison method — `parse()` it first, and pass the resulting number.
+These parameters are converted with `of()`, so the same rules apply: for untrusted strings, use
+[`parse()`](#parsing-untrusted-input) first, and pass the resulting number to the method.
 
 #### Division & rounding
 
