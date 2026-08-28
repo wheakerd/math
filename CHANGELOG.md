@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## UNRELEASED (0.20.0)
+## [0.20.0](https://github.com/brick/math/releases/tag/0.20.0) - 2026-08-28
 
 💥 **Breaking changes**
 
 - Deprecated exception class `UnsupportedPlatformException` has been removed, catch `PlatformException` instead
 
-The following breaking change only affects you if you specifically catch `DivisionByZeroException` around calls to `of()`:
+The following breaking change only affects you if you specifically catch `DivisionByZeroException` around calls to `of()` or to any method accepting strings:
 
 - `of()` now throws `NumberFormatException` instead of `DivisionByZeroException` when the string is a fraction with a denominator of zero, such as `'2/0'`
 
